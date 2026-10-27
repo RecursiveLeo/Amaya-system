@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme | default('system') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ shop_name | default('Accessories POS') }}{% endblock %} - {{ shop_name | default('Accessories POS') }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <script>
+    (() => {
+      const preference = document.documentElement.dataset.theme;
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+      const applyTheme = () => {
+        document.documentElement.dataset.theme =
+          preference === "system" ? (systemTheme.matches ? "dark" : "light") : preference;
+      };
+      applyTheme();
+      if (preference === "system") systemTheme.addEventListener("change", applyTheme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.css') }}">
+  <style>
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --ink: #e5e7eb;
+      --muted: #a7b0c0;
+      --line: #334155;
+      --paper: #1e293b;
+      --canvas: #0f172a;
+      --navy: #0b1220;
+      color: var(--ink);
+    }
+    html[data-theme="dark"] body { background: var(--canvas); color: var(--ink); }
+    html[data-theme="dark"] main { color: var(--ink); }
+    html[data-theme="dark"] h1,
+    html[data-theme="dark"] h2,
+    html[data-theme="dark"] .pos-heading h1,
+    html[data-theme="dark"] .auth-card h1,
+    html[data-theme="dark"] .topbar-title strong,
+    html[data-theme="dark"] .topbar-title,
+    html[data-theme="dark"] .user-badge,
+    html[data-theme="dark"] .metric-label,
+    html[data-theme="dark"] .metric-value,
+    html[data-theme="dark"] .metric-foot strong,
+    html[data-theme="dark"] .summary-row strong,
+    html[data-theme="dark"] .amount,
+    html[data-theme="dark"] .page-subtitle,
+    html[data-theme="dark"] .panel-note,
+    html[data-theme="dark"] .metric-label,
+    html[data-theme="dark"] .metric-foot,
+    html[data-theme="dark"] .summary-row,
+    html[data-theme="dark"] .empty-state,
+    html[data-theme="dark"] .loading,
+    html[data-theme="dark"] th,
+    html[data-theme="dark"] .product-name,
+    html[data-theme="dark"] .product-meta,
+    html[data-theme="dark"] .product-code,
+    html[data-theme="dark"] .field,
+    html[data-theme="dark"] .field-hint,
+    html[data-theme="dark"] .settings-field,
+    html[data-theme="dark"] .settings-card h2,
+    html[data-theme="dark"] .settings-page > .page-subtitle,
+    html[data-theme="dark"] .scan-label,
+    html[data-theme="dark"] .cart-table th,
+    html[data-theme="dark"] .cart-table td,
+    html[data-theme="dark"] .auth-switch,
+    html[data-theme="dark"] .sales-table td,
+    html[data-theme="dark"] .sales-table th,
+    html[data-theme="dark"] .settings-card,
+    html[data-theme="dark"] .inventory-panel,
+    html[data-theme="dark"] .inventory-metric,
+    html[data-theme="dark"] .inventory-panel h2,
+    html[data-theme="dark"] .auth-card,
+    html[data-theme="dark"] .checkout-panel,
+    html[data-theme="dark"] .sale-page,
+    html[data-theme="dark"] .settings-page,
+    html[data-theme="dark"] .product-name { color: #cbd5e1; }
+    html[data-theme="dark"] .topbar,
+    html[data-theme="dark"] .metric-card,
+    html[data-theme="dark"] .panel,
+    html[data-theme="dark"] .auth-card,
+    html[data-theme="dark"] .checkout-panel,
+    html[data-theme="dark"] .sales-table,
+    html[data-theme="dark"] .settings-card { background: var(--paper); border-color: var(--line); }
+    html[data-theme="dark"] .auth-card,
+    html[data-theme="dark"] .checkout-panel { color: var(--ink); }
+    html[data-theme="dark"] input,
+    html[data-theme="dark"] select,
+    html[data-theme="dark"] textarea,
+    html[data-theme="dark"] button:not(.primary-action):not(.sale-submit) {
+      color-scheme: dark;
+      background-color: #111c2c;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    html[data-theme="dark"] .settings-button.secondary,
+    html[data-theme="dark"] .secondary-button,
+    html[data-theme="dark"] .edit-button,
+    html[data-theme="dark"] .text-button { background: #111c2c; color: #dbe4f0; border-color: var(--line); }
+    html[data-theme="dark"] td,
+    html[data-theme="dark"] th,
+    html[data-theme="dark"] .payment-row,
+    html[data-theme="dark"] .sales-table td { border-color: var(--line); color: #cbd5e1; }
+    html[data-theme="dark"] .search-field,
+    html[data-theme="dark"] .field input,
+    html[data-theme="dark"] .settings-field input,
+    html[data-theme="dark"] .settings-field select { background: #111c2c; color: var(--ink); border-color: var(--line); }
+    html[data-theme="dark"] .settings-card p,
+    html[data-theme="dark"] .inventory-heading p,
+    html[data-theme="dark"] .inventory-metric span,
+    html[data-theme="dark"] .inventory-meta,
+    html[data-theme="dark"] .inventory-footnote,
+    html[data-theme="dark"] .pos-heading p,
+    html[data-theme="dark"] .product-meta,
+    html[data-theme="dark"] .brand-name,
+    html[data-theme="dark"] .metric-foot,
+    html[data-theme="dark"] .panel-note { color: #a7b0c0; }
+    html[data-theme="dark"] .settings-warning { background: #352b19; color: #f5d28d; }
+    html[data-theme="dark"] .settings-language { background: #111c2c; color: #cbd5e1; border-color: var(--line); }
+    html[data-theme="dark"] .flash-message.error { background: #3a2024; color: #ffc1c8; }
+    html[data-theme="dark"] .flash-message.success { background: #173328; color: #a7e4c2; }
+    html[data-theme="dark"] .load-error,
+    html[data-theme="dark"] .form-error { background: #3a2024; color: #ffc1c8; border-color: #73323b; }
+    html[data-theme="dark"] .success-message { background: #173328; color: #a7e4c2; border-color: #285d43; }
+    html[data-theme="dark"] .movement-positive { color: #7ee2aa; }
+    html[data-theme="dark"] .movement-negative { color: #ff9aa4; }
+    .theme-toggle-form { margin: 0; }
+    .theme-toggle-button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px;
+      background: var(--paper); color: var(--ink); font: inherit; font-size: .72rem; cursor: pointer; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <input class="nav-toggle" id="nav-toggle" type="checkbox" aria-label="Toggle navigation">
+  <div class="layout">
+    <div id="sidebar-root"></div>
+    <label class="mobile-overlay" for="nav-toggle" aria-label="Close navigation"></label>
+    <div class="workspace">
+      <header class="topbar">
+        <label class="mobile-menu" for="nav-toggle" aria-label="Open navigation">☰</label>
+        <div class="topbar-title"><strong>{{ shop_name | default('Accessories POS') }}</strong><span> / </span> Shop management</div>
+        {% if session.get("user_id") %}
+        <div class="user-badge">
+          <form class="theme-toggle-form" method="post" action="{{ url_for('settings.toggle_theme') }}">
+            <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button class="theme-toggle-button" type="submit" aria-label="Switch to {{ 'light' if theme == 'dark' else 'dark' }} mode">
+              {{ "Light mode" if theme == "dark" else "Dark mode" }}
+            </button>
+          </form>
+          <span class="user-avatar" aria-hidden="true">{{ session.get("name", "U")[0] | upper }}</span>
+          {{ session.get("name", "Cashier") }}
+          <a href="{{ url_for('auth.logout') }}">Log out</a>
+        </div>
+        {% else %}
+        <div class="user-badge"><a href="{{ url_for('auth.login') }}">Log in</a><a href="{{ url_for('auth.register') }}">Register</a></div>
+        {% endif %}
+      </header>
+      <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <p class="flash-message {{ category }}" role="status">{{ message }}</p>
+          {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <script id="nav-data" type="application/json">{{ nav | tojson }}</script>
+  <script id="shop-config-data" type="application/json">{{ {"shop_name": shop_name | default("Accessories POS")} | tojson }}</script>
+  <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "shop-3-system-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:backend\" \"vite --host 127.0.0.1\"",
+    "dev:backend": "python -m flask --app app:create_app run --debug --host 127.0.0.1 --port 5000",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.2.0",
+    "vite": "^6.3.5"
+  }
+}

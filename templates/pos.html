@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Quick sales{% endblock %}
+{% block head %}
+<style>
+  .pos-page { max-width: 1000px; margin: 0 auto; }
+  .pos-heading { margin-bottom: 22px; }
+  .pos-heading h1 { margin: 0; color: #192437; font-size: clamp(1.65rem, 3vw, 2rem); letter-spacing: -.045em; }
+  .pos-heading p { margin: 7px 0 0; color: #748094; font-size: .88rem; }
+  .checkout-panel { padding: 22px; border: 1px solid #e8edf3; border-radius: 13px; background: #fff; box-shadow: 0 3px 12px #18223008; }
+  .scan-label { display: block; margin-bottom: 8px; color: #405066; font-size: .8rem; font-weight: 650; }
+  #scan { width: 100%; padding: 13px 14px; border: 1px solid #dce3ed; border-radius: 9px; outline: none;
+          background: #fbfcfe; color: #182230; font: inherit; font-size: .95rem; }
+  #scan:focus { border-color: #4169e1; box-shadow: 0 0 0 3px #4169e11f; }
+  #scan::placeholder { color: #99a3b1; }
+  #msg { min-height: 1.4em; margin-top: 8px; color: #b00020; font-size: .82rem; }
+  .cart-table { width: 100%; margin-top: 15px; border-collapse: collapse; }
+  .cart-table th, .cart-table td { padding: 11px 9px; border-bottom: 1px solid #edf0f4; text-align: left; }
+  .cart-table th { color: #8490a0; font-size: .7rem; font-weight: 650; }
+  .cart-table td { color: #425066; font-size: .8rem; }
+  .cart-table th:first-child, .cart-table td:first-child { padding-left: 0; }
+  .cart-table th:last-child, .cart-table td:last-child { padding-right: 0; }
+  .num { text-align: right !important; }
+  #total { margin-top: 17px; color: #182230; font-size: 1.3rem; font-weight: 750; text-align: right; }
+  .payment-controls { display: grid; max-width: 520px; gap: 12px; margin: 20px 0 0 auto; }
+  .payment-field { display: grid; gap: 6px; color: #405066; font-size: .78rem; font-weight: 650; }
+  .payment-field input, .payment-field select { width: 100%; padding: 10px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #182230; font: inherit; }
+  .payment-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .payment-help { margin: 0; color: #748094; font-size: .75rem; }
+  #checkout { display: block; margin: 14px 0 0 auto; padding: 11px 16px; border: 0; border-radius: 8px;
+              background: #2563eb; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  #checkout:disabled { background: #aab4c3; cursor: not-allowed; }
+  @media (max-width: 540px) {
+    .checkout-panel { padding: 15px; }
+    .cart-table th, .cart-table td { padding: 9px 5px; font-size: .72rem; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="pos-page">
+  <header class="pos-heading">
+    <h1>Quick sales</h1>
+    <p>Scan a barcode or enter an item's SKU to add it to the checkout.</p>
+  </header>
+  <section class="checkout-panel" aria-label="Quick sale checkout">
+    <label class="scan-label" for="scan">Scan item</label>
+    <input id="scan" placeholder="Scan barcode and press Enter" autofocus autocomplete="off">
+    <div id="msg" role="status" aria-live="polite"></div>
+
+    <table class="cart-table">
+      <thead><tr><th>Item</th><th class="num">Price</th><th class="num">Qty</th><th class="num">Line total</th></tr></thead>
+      <tbody id="cart"></tbody>
+    </table>
+    <div id="total">Total: KSh 0</div>
+    <div class="payment-controls">
+      <label class="payment-field" for="payment-method">Payment method
+        <select id="payment-method">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="split">Cash + M-Pesa (split)</option>
+        </select>
+      </label>
+      <label class="payment-field" id="cash-field" for="cash-amount">Cash received (KSh)
+        <input id="cash-amount" type="number" min="1" step="1" value="0">
+      </label>
+      <div id="mpesa-fields" hidden>
+        <div class="payment-row">
+          <label class="payment-field" id="mpesa-amount-field" for="mpesa-amount">M-Pesa amount (KSh)
+            <input id="mpesa-amount" type="number" min="1" step="1" value="0">
+          </label>
+          <label class="payment-field" id="split-cash-field" for="split-cash-amount" hidden>Cash portion (auto)
+            <input id="split-cash-amount" type="number" readonly value="0">
+          </label>
+        </div>
+      </div>
+      <p class="payment-help" id="payment-summary" aria-live="polite"></p>
+    </div>
+    <button id="checkout" type="button" disabled>Complete sale</button>
+  </section>
+</div>
+
+<script>
+  const cart = {};  // variant id -> { item, qty }
+  const scan = document.getElementById("scan");
+  const msg = document.getElementById("msg");
+  const checkout = document.getElementById("checkout");
+  const paymentMethod = document.getElementById("payment-method");
+  const cashAmount = document.getElementById("cash-amount");
+  const mpesaAmount = document.getElementById("mpesa-amount");
+  const splitCashAmount = document.getElementById("split-cash-amount");
+  let cartTotal = 0;
+  let lastCashDefault = 0;
+  let lastMpesaDefault = 0;
+
+  scan.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter") return;
+    const barcode = scan.value.trim();
+    scan.value = "";
+    if (!barcode) return;
+
+    const res = await fetch("/pos/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode }),
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.error; return; }
+
+    msg.textContent = "";
+    const line = cart[data.id] || (cart[data.id] = { item: data, qty: 0 });
+    if (line.qty >= data.stock) { msg.textContent = "No more stock for " + data.label; return; }
+    line.qty += 1;
+    render();
+  });
+
+  paymentMethod.addEventListener("change", () => {
+    if (paymentMethod.value === "split") mpesaAmount.value = "";
+    else if (paymentMethod.value === "mpesa") mpesaAmount.value = String(cartTotal);
+    else cashAmount.value = String(cartTotal);
+    updatePaymentControls();
+  });
+  cashAmount.addEventListener("input", updatePaymentSummary);
+  mpesaAmount.addEventListener("input", updatePaymentSummary);
+
+  function updatePaymentControls() {
+    const method = paymentMethod.value;
+    document.getElementById("cash-field").hidden = method !== "cash";
+    document.getElementById("mpesa-fields").hidden = method === "cash";
+    document.getElementById("split-cash-field").hidden = method !== "split";
+    document.getElementById("mpesa-amount-field").hidden = method === "split";
+    cashAmount.required = method === "cash";
+    mpesaAmount.required = method !== "cash";
+    updatePaymentSummary();
+  }
+
+  function buildPayments() {
+    const method = paymentMethod.value;
+    if (method === "cash") {
+      return [{ method: "cash", amount: Number(cashAmount.value) }];
+    }
+    if (method === "mpesa") {
+      return [{ method: "mpesa", amount: Number(mpesaAmount.value) }];
+    }
+    const mpesa = Number(mpesaAmount.value);
+    const cash = cartTotal - mpesa;
+    if (mpesa <= 0 || cash <= 0) {
+      throw new Error("Enter an M-Pesa amount less than the sale total to calculate the cash portion.");
+    }
+    splitCashAmount.value = String(cash);
+    return [
+      { method: "cash", amount: cash },
+      { method: "mpesa", amount: mpesa },
+    ];
+  }
+
+  function updatePaymentSummary() {
+    const summary = document.getElementById("payment-summary");
+    const method = paymentMethod.value;
+    const mpesa = Number(mpesaAmount.value) || 0;
+    if (method === "split") {
+      const cash = cartTotal - mpesa;
+      splitCashAmount.value = String(Math.max(0, cash));
+      summary.textContent = cash > 0 && mpesa > 0
+        ? `Payment split: KSh ${cash.toLocaleString()} cash + KSh ${mpesa.toLocaleString()} M-Pesa.`
+        : "Enter the M-Pesa amount; the cash portion is calculated from the sale total.";
+      return;
+    }
+    if (method === "mpesa") {
+      summary.textContent = mpesa > 0
+        ? `M-Pesa amount: KSh ${mpesa.toLocaleString()}.`
+        : "Enter the amount paid through M-Pesa.";
+      return;
+    }
+    const cash = Number(cashAmount.value) || 0;
+    const difference = cash - cartTotal;
+    summary.textContent = difference >= 0
+      ? `Cash change: KSh ${difference.toLocaleString()}.`
+      : `Cash still due: KSh ${Math.abs(difference).toLocaleString()}.`;
+  }
+
+  checkout.addEventListener("click", async () => {
+    const items = Object.values(cart).map(({ item, qty }) => ({
+      variant_id: item.id,
+      qty,
+    }));
+    if (!items.length) return;
+
+    let payments;
+    try {
+      payments = buildPayments();
+      if (payments.some((payment) => !Number.isInteger(payment.amount) || payment.amount <= 0)) {
+        throw new Error("Enter a valid whole-number payment amount.");
+      }
+    } catch (error) {
+      msg.textContent = error.message;
+      msg.style.color = "#b00020";
+      return;
+    }
+
+    checkout.disabled = true;
+    scan.disabled = true;
+    msg.textContent = "Recording sale…";
+    try {
+      const response = await fetch("/pos/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items,
+          payments,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Sale could not be recorded.");
+
+      for (const id of Object.keys(cart)) delete cart[id];
+      render();
+      msg.textContent = `Sale #${result.sale_id} recorded. Total: KSh ${result.total.toLocaleString()}. Change: KSh ${result.change.toLocaleString()}.`;
+      msg.style.color = "#176334";
+      cashAmount.value = String(cartTotal);
+      mpesaAmount.value = String(cartTotal);
+    } catch (error) {
+      msg.textContent = error.message || "Sale could not be recorded. Please try again.";
+      msg.style.color = "#b00020";
+      checkout.disabled = false;
+    } finally {
+      scan.disabled = false;
+      scan.focus();
+    }
+  });
+
+  function render() {
+    const body = document.getElementById("cart");
+    body.innerHTML = "";
+    let total = 0;
+    for (const { item, qty } of Object.values(cart)) {
+      const lineTotal = item.price * qty;
+      total += lineTotal;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${item.label}</td><td class="num">${item.price}</td><td class="num">${qty}</td><td class="num">${lineTotal}</td>`;
+      body.appendChild(tr);
+    }
+    document.getElementById("total").textContent = "Total: KSh " + total;
+    cartTotal = total;
+    if (Number(cashAmount.value) === lastCashDefault) cashAmount.value = String(total);
+    if (Number(mpesaAmount.value) === lastMpesaDefault) mpesaAmount.value = String(total);
+    lastCashDefault = total;
+    lastMpesaDefault = total;
+    checkout.disabled = total <= 0;
+    updatePaymentSummary();
+  }
+
+  updatePaymentControls();
+</script>
+{% endblock %}

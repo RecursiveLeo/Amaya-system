@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}New sale{% endblock %}
+{% block head %}
+<style>
+  .sale-page { max-width: 760px; margin: 0 auto; }
+  .sale-items { display: grid; gap: 10px; }
+  .sale-item-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 10px; }
+  .sale-item-row select, .sale-item-row input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #dce3ed; border-radius: 7px; font: inherit; }
+  .sale-total { margin: 18px 0; color: #182230; font-size: 1.2rem; font-weight: 750; text-align: right; }
+  .sale-payment { display: grid; max-width: 520px; gap: 12px; margin: 18px 0 0 auto; }
+  .sale-payment label { display: grid; gap: 6px; color: #405066; font-size: .78rem; font-weight: 650; }
+  .sale-payment input, .sale-payment select { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #182230; font: inherit; }
+  .sale-payment-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sale-payment-help { margin: 0; color: #748094; font-size: .75rem; }
+  .sale-tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .sale-tools button { padding: 9px 13px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; font: inherit; cursor: pointer; }
+  @media (max-width: 520px) { .sale-item-row { grid-template-columns: 1fr 90px; } }
+</style>
+{% endblock %}
+{% block content %}
+<section class="sale-page">
+  <h1>New sale</h1>
+  {% if products %}
+  <form method="post">
+    <div id="sale-items" class="sale-items">
+      <div class="sale-item-row">
+        <select name="product_id" aria-label="Product">
+          {% for product in products %}
+          <option value="{{ product.id }}" data-price="{{ product.price }}">{{ product.label }} — KSh {{ product.price }} ({{ product.stock }} in stock)</option>
+          {% endfor %}
+        </select>
+        <input name="quantity" type="number" min="0" value="1" aria-label="Quantity">
+      </div>
+    </div>
+    <div class="sale-total" id="sale-total">Total: KSh 0</div>
+    <div class="sale-payment">
+      <label for="payment-method">Payment method
+        <select id="payment-method" name="payment_method">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="split">Cash + M-Pesa (split)</option>
+        </select>
+      </label>
+      <label id="cash-field" for="cash-amount">Cash received (KSh)
+        <input id="cash-amount" name="cash_amount" type="number" min="1" step="1" value="0">
+      </label>
+      <div id="mpesa-fields" hidden>
+        <div class="sale-payment-row">
+          <label id="mpesa-amount-field" for="mpesa-amount">M-Pesa amount (KSh)
+            <input id="mpesa-amount" name="mpesa_amount" type="number" min="1" step="1" value="0">
+          </label>
+          <label id="split-cash-field" for="split-cash-amount" hidden>Cash portion (auto)
+            <input id="split-cash-amount" type="number" readonly value="0">
+          </label>
+        </div>
+      </div>
+      <p class="sale-payment-help" id="payment-summary" aria-live="polite"></p>
+    </div>
+    <div class="sale-tools">
+      <button type="button" id="add-item">Add another item</button>
+      <button type="submit" class="sale-submit">Record sale</button>
+    </div>
+  </form>
+  {% else %}
+  <p>There are no in-stock products available to sell.</p>
+  {% endif %}
+</section>
+{% if products %}
+<script>
+  const rows = document.getElementById("sale-items");
+  const paymentMethod = document.getElementById("payment-method");
+  const cashAmount = document.getElementById("cash-amount");
+  const mpesaAmount = document.getElementById("mpesa-amount");
+  const splitCashAmount = document.getElementById("split-cash-amount");
+  let saleTotal = 0;
+  let lastCashDefault = 0;
+  let lastMpesaDefault = 0;
+
+  function updateTotal() {
+    saleTotal = [...rows.querySelectorAll(".sale-item-row")].reduce((total, row) => {
+      const option = row.querySelector("select").selectedOptions[0];
+      const quantity = Number(row.querySelector('input[name="quantity"]').value) || 0;
+      return total + Number(option.dataset.price) * quantity;
+    }, 0);
+    document.getElementById("sale-total").textContent = `Total: KSh ${saleTotal.toLocaleString()}`;
+    if (Number(cashAmount.value) === lastCashDefault) cashAmount.value = String(saleTotal);
+    if (Number(mpesaAmount.value) === lastMpesaDefault) mpesaAmount.value = String(saleTotal);
+    lastCashDefault = saleTotal;
+    lastMpesaDefault = saleTotal;
+    updatePaymentSummary();
+  }
+
+  function updatePaymentControls() {
+    const method = paymentMethod.value;
+    document.getElementById("cash-field").hidden = method !== "cash";
+    document.getElementById("mpesa-fields").hidden = method === "cash";
+    document.getElementById("split-cash-field").hidden = method !== "split";
+    document.getElementById("mpesa-amount-field").hidden = method === "split";
+    cashAmount.required = method === "cash";
+    mpesaAmount.required = method !== "cash";
+    if (method === "split" && Number(mpesaAmount.value) === 0) mpesaAmount.value = "";
+    updatePaymentSummary();
+  }
+
+  function updatePaymentSummary() {
+    const summary = document.getElementById("payment-summary");
+    const mpesa = Number(mpesaAmount.value) || 0;
+    if (paymentMethod.value === "split") {
+      const cash = saleTotal - mpesa;
+      splitCashAmount.value = String(Math.max(0, cash));
+      summary.textContent = cash > 0 && mpesa > 0
+        ? `Payment split: KSh ${cash.toLocaleString()} cash + KSh ${mpesa.toLocaleString()} M-Pesa.`
+        : "Enter the M-Pesa amount; the cash portion is calculated from the sale total.";
+    } else if (paymentMethod.value === "mpesa") {
+      summary.textContent = mpesa > 0
+        ? `M-Pesa amount: KSh ${mpesa.toLocaleString()}.`
+        : "Enter the amount paid through M-Pesa.";
+    } else {
+      const difference = (Number(cashAmount.value) || 0) - saleTotal;
+      summary.textContent = difference >= 0
+        ? `Cash change: KSh ${difference.toLocaleString()}.`
+        : `Cash still due: KSh ${Math.abs(difference).toLocaleString()}.`;
+    }
+  }
+
+  document.getElementById("add-item").addEventListener("click", () => {
+    const row = document.querySelector(".sale-item-row").cloneNode(true);
+    row.querySelector("select").selectedIndex = 0;
+    row.querySelector("input").value = "1";
+    rows.appendChild(row);
+    updateTotal();
+  });
+
+  rows.addEventListener("input", updateTotal);
+  rows.addEventListener("change", updateTotal);
+  paymentMethod.addEventListener("change", () => {
+    if (paymentMethod.value === "split") mpesaAmount.value = "";
+    else if (paymentMethod.value === "mpesa") mpesaAmount.value = String(saleTotal);
+    else cashAmount.value = String(saleTotal);
+    updatePaymentControls();
+  });
+  cashAmount.addEventListener("input", updatePaymentSummary);
+  mpesaAmount.addEventListener("input", updatePaymentSummary);
+  updateTotal();
+  updatePaymentControls();
+</script>
+{% endif %}
+{% endblock %}

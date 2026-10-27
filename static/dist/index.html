@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessories POS</title>
+    <link rel="icon" type="image/svg+xml" href="/static/dist/assets/favicon.svg">
+    <script type="module" crossorigin src="/static/dist/app.js"></script>
+    <link rel="stylesheet" crossorigin href="/static/dist/app.css">
+  </head>
+  <body>
+    <input class="nav-toggle" id="nav-toggle" type="checkbox" aria-label="Toggle navigation">
+    <div class="layout">
+      <div id="sidebar-root"></div>
+      <label class="mobile-overlay" for="nav-toggle" aria-label="Close navigation"></label>
+      <div class="workspace">
+        <header class="topbar">
+          <label class="mobile-menu" for="nav-toggle" aria-label="Open navigation">☰</label>
+          <div class="topbar-title"><strong>Accessories POS</strong><span> / </span> Shop management</div>
+          <div class="user-badge"><span class="user-avatar" aria-hidden="true">A</span> Administrator</div>
+        </header>
+        <main>
+          <div id="dashboard-root"></div>
+          <div id="products-root"></div>
+        </main>
+      </div>
+    </div>
+    <script id="nav-data" type="application/json">[
+      {"title":"1. Quick Sales","items":[["Quick sales","/",true],["New sale","/sales/new",true],["My sales","/sales/mine",true],["Sales","/sales",false],["Shifts","/shifts",false],["Returns","/returns",false]]},
+      {"title":"2. Catalog and Stock","items":[["Products","/products",true],["Categories","/categories",false],["Quick-pick grid","/quick-pick",false]]},
+      {"title":"3. Supply Chain","items":[["Supplies","/suppliers",false],["Receiving","/receiving",false],["Inventory","/inventory",true]]},
+      {"title":"4. Business","items":[["Customers","/customers",false],["Expenses","/expenses",false],["Reports","/reports",false],["Settings","/settings",true]]}
+    ]</script>
+    <script id="shop-config-data" type="application/json">{"shop_name":"Accessories POS"}</script>
+  </body>
+</html>

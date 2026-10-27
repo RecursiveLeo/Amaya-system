@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Inventory{% endblock %}
+{% block head %}
+<style>
+  .inventory-page { max-width: 1420px; margin: 0 auto; }
+  .inventory-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  .inventory-heading p { margin: 7px 0 0; color: #748094; font-size: .84rem; }
+  .inventory-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .inventory-metric { padding: 16px; border: 1px solid #e8edf3; border-radius: 10px; background: #fff; }
+  .inventory-metric span { display: block; color: #748094; font-size: .72rem; }
+  .inventory-metric strong { display: block; margin-top: 7px; color: #1e293a; font-size: 1.35rem; }
+  .inventory-panel { margin-top: 15px; padding: 18px; border: 1px solid #e8edf3; border-radius: 11px; background: #fff; }
+  .inventory-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .inventory-toolbar h2 { margin: 0; }
+  .inventory-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .inventory-filters input, .inventory-filters select { min-height: 38px; padding: 7px 10px; border: 1px solid #dfe4eb; border-radius: 7px; background: #fff; color: #354155; font: inherit; }
+  .inventory-filters input { width: min(280px, 55vw); }
+  .inventory-filters button { padding: 0 13px; border: 0; border-radius: 7px; background: #4d65e8; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+  .inventory-table-scroll { overflow-x: auto; }
+  .inventory-table { min-width: 850px; }
+  .inventory-table td { vertical-align: middle; }
+  .inventory-product { display: block; color: #344156; font-weight: 650; }
+  .inventory-meta { display: block; margin-top: 3px; color: #8b95a4; font-size: .65rem; }
+  .stocktake-form { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px; }
+  .stocktake-form input[type="number"] { width: 75px; padding: 6px; border: 1px solid #dfe4eb; border-radius: 6px; font: inherit; }
+  .stocktake-form input[type="text"] { width: 115px; padding: 6px; border: 1px solid #dfe4eb; border-radius: 6px; font: inherit; }
+  .stocktake-form button { padding: 7px 9px; border: 0; border-radius: 6px; background: #4d65e8; color: #fff; font: inherit; font-size: .67rem; font-weight: 650; cursor: pointer; }
+  .movement-positive { color: #25845a; font-weight: 700; }
+  .movement-negative { color: #c94c53; font-weight: 700; }
+  .inventory-footnote { margin: 12px 0 0; color: #8b95a4; font-size: .7rem; }
+  @media (max-width: 760px) { .inventory-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) {
+    .inventory-heading { align-items: flex-start; flex-direction: column; }
+    .inventory-metrics { gap: 8px; }
+    .inventory-metric { padding: 12px; }
+    .inventory-metric strong { font-size: 1.15rem; }
+    .inventory-panel { padding: 13px; }
+    .inventory-toolbar { align-items: stretch; flex-direction: column; }
+    .inventory-filters input { width: 100%; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="inventory-page">
+  <header class="inventory-heading">
+    <div>
+      <h1>Inventory</h1>
+      <p>Review stock on hand, count products, and track stock movements.</p>
+    </div>
+  </header>
+
+  <section class="inventory-metrics" aria-label="Inventory summary">
+    <article class="inventory-metric"><span>Active items</span><strong>{{ inventory.summary.items }}</strong></article>
+    <article class="inventory-metric"><span>Low stock</span><strong>{{ inventory.summary.low_stock }}</strong></article>
+    <article class="inventory-metric"><span>Out of stock</span><strong>{{ inventory.summary.out_of_stock }}</strong></article>
+    <article class="inventory-metric"><span>Stock cost value</span><strong>KSh {{ "{:,.0f}".format(inventory.summary.stock_cost_value) }}</strong></article>
+  </section>
+
+  <section class="inventory-panel">
+    <div class="inventory-toolbar">
+      <h2>Stock on hand</h2>
+      <form class="inventory-filters" method="get" action="{{ url_for('inventory.inventory_page') }}">
+        <label class="visually-hidden" for="inventory-search">Search inventory</label>
+        <input id="inventory-search" name="q" value="{{ inventory.query }}" placeholder="Search name, SKU, barcode">
+        <label class="visually-hidden" for="stock-filter">Filter stock</label>
+        <select id="stock-filter" name="stock">
+          <option value="all" {{ "selected" if inventory.filter == "all" }}>All stock</option>
+          <option value="low" {{ "selected" if inventory.filter == "low" }}>Low stock</option>
+          <option value="out" {{ "selected" if inventory.filter == "out" }}>Out of stock</option>
+        </select>
+        <button type="submit">Search</button>
+      </form>
+    </div>
+
+    {% if inventory.products %}
+    <div class="inventory-table-scroll">
+      <table class="inventory-table">
+        <thead>
+          <tr><th>Product</th><th>SKU</th><th class="align-right">On hand</th><th class="align-right">Reorder at</th><th class="align-right">Unit cost</th><th>Stocktake</th></tr>
+        </thead>
+        <tbody>
+          {% for item in inventory.products %}
+          <tr>
+            <td><span class="inventory-product">{{ item.label }}</span><small class="inventory-meta">{{ item.brand or "No brand" }}{% if item.category %} · {{ item.category }}{% endif %}</small></td>
+            <td><span class="product-code">{{ item.sku }}</span>{% if item.barcode %}<small class="inventory-meta">{{ item.barcode }}</small>{% endif %}</td>
+            <td class="align-right"><span class="stock-pill {{ 'stock-out' if item.stock <= 0 else 'stock-low' if item.stock <= item.reorder_level else '' }}">{{ item.stock }}</span></td>
+            <td class="align-right">{{ item.reorder_level }}</td>
+            <td class="align-right amount">KSh {{ "{:,.0f}".format(item.cost) }}</td>
+            <td>
+              <form class="stocktake-form" method="post" action="{{ url_for('inventory.inventory_stocktake', variant_id=item.variant_id) }}">
+                <input type="hidden" name="q" value="{{ inventory.query }}">
+                <input type="hidden" name="stock" value="{{ inventory.filter }}">
+                <label class="visually-hidden" for="count-{{ item.variant_id }}">Counted stock for {{ item.label }}</label>
+                <input id="count-{{ item.variant_id }}" name="counted_stock" type="number" min="0" step="1" value="{{ item.stock }}" required>
+                <label class="visually-hidden" for="note-{{ item.variant_id }}">Stocktake note for {{ item.label }}</label>
+                <input id="note-{{ item.variant_id }}" name="note" type="text" maxlength="200" placeholder="Optional note">
+                <button type="submit">Save count</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No inventory items match this filter.</p>
+    {% endif %}
+    {% if inventory.truncated %}<p class="inventory-footnote">Showing the first 500 items. Refine your search to see other products.</p>{% endif %}
+  </section>
+
+  <section class="inventory-panel">
+    <div class="inventory-toolbar">
+      <div><h2>Recent stock movements</h2><p class="panel-note">Latest 100 additions, sales, and stocktake adjustments</p></div>
+    </div>
+    {% if inventory.movements %}
+    <div class="inventory-table-scroll">
+      <table>
+        <thead><tr><th>Date</th><th>Product</th><th>Movement</th><th>Reason</th><th>Note</th><th>Recorded by</th></tr></thead>
+        <tbody>
+          {% for movement in inventory.movements %}
+          <tr>
+            <td>{{ movement.created_at }}</td>
+            <td>{{ movement.label }}<small class="inventory-meta">{{ movement.sku }}</small></td>
+            <td class="{{ 'movement-positive' if movement.qty_change > 0 else 'movement-negative' }}">{{ "%+d"|format(movement.qty_change) }}</td>
+            <td>{{ movement.reason.replace("_", " ")|title }}</td>
+            <td>{{ movement.note or "—" }}</td>
+            <td>{{ movement.user_name or "System" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No stock movements have been recorded yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

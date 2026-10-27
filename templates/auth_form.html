@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set is_register = mode == "register" %}
+{% block title %}{{ "Create account" if is_register else "Log in" }}{% endblock %}
+{% block head %}
+<style>
+  .auth-card { max-width: 440px; margin: 36px auto; padding: 24px; border: 1px solid #e8edf3; border-radius: 12px; background: #fff; }
+  .auth-card h1 { margin-top: 0; color: #192437; }
+  .auth-card label { display: block; margin: 14px 0 6px; color: #405066; font-weight: 600; }
+  .auth-card input { box-sizing: border-box; width: 100%; padding: 11px; border: 1px solid #dce3ed; border-radius: 7px; font: inherit; }
+  .auth-card button, .sale-submit { margin-top: 18px; padding: 11px 16px; border: 0; border-radius: 7px; background: #2563eb; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+  .auth-switch { margin-top: 16px; }
+  .flash-message { margin: 0 0 14px; padding: 10px 12px; border-radius: 7px; background: #fff4e5; color: #7a3d00; }
+  .flash-message.success { background: #eaf7ee; color: #176334; }
+</style>
+{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <h1>{{ "Create cashier account" if is_register else "Log in" }}</h1>
+  <form method="post">
+    {% if is_register %}
+    <label for="full_name">Full name</label>
+    <input id="full_name" name="full_name" autocomplete="name" required>
+    {% endif %}
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="{{ 'new-password' if is_register else 'current-password' }}" required>
+    {% if is_register %}
+    <label for="join_code">Shop join code</label>
+    <input id="join_code" name="join_code" value="{{ join_code }}" autocomplete="off" required>
+    <small>The shop join code is prefilled for this local app.</small>
+    {% endif %}
+    <button type="submit">{{ "Create account" if is_register else "Log in" }}</button>
+  </form>
+  <p class="auth-switch">
+    {% if is_register %}
+    Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+    {% else %}
+    Need an account? <a href="{{ url_for('auth.register') }}">Register</a>
+    {% endif %}
+  </p>
+</section>
+{% endblock %}

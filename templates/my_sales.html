@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}My sales{% endblock %}
+{% block head %}
+<style>
+  .sales-table { width: 100%; border-collapse: collapse; background: #fff; }
+  .sales-table th, .sales-table td { padding: 12px 10px; border-bottom: 1px solid #edf0f4; text-align: left; }
+  .sales-table th { color: #748094; font-size: .8rem; }
+  .sales-table td { color: #354155; }
+  @media (max-width: 560px) { .sales-table th, .sales-table td { padding: 9px 5px; font-size: .8rem; } }
+</style>
+{% endblock %}
+{% block content %}
+<h1>My sales</h1>
+<p><a href="{{ url_for('auth.new_sale') }}">Record a new sale</a></p>
+{% if sales %}
+<table class="sales-table">
+  <thead><tr><th>Sale</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for sale in sales %}
+    <tr>
+      <td>#{{ sale.id }}</td>
+      <td>{{ sale.created_at }}</td>
+      <td>{{ sale.item_count }}</td>
+      <td>KSh {{ "{:,.2f}".format(sale.total) }}</td>
+      <td>{{ sale.status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>You have not recorded any sales yet.</p>
+{% endif %}
+{% endblock %}
